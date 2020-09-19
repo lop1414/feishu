@@ -22,20 +22,37 @@ class ApiAuth
         }
 
         if(TIMESTAMP - $req['time'] > 60){
-            //return $this->fail('TIME_EXPIRED', '请求已失效');
+            return $this->fail('TIME_EXPIRED', '请求已失效');
         }
 
-        // 内容串
-        $reqSign = $req['sign'];
-        unset($req['sign']);
-        $query = http_build_query($req);
-
         // 签名
-        $sign = md5($query . $req['time'] . env('API_SECRET'));
-        if($sign != $reqSign){
+        $sign = $this->makeSign($req, env('API_SECRET'));
+        if($sign != $req['sign']){
             return $this->fail('SIGN_ERROR', '签名错误');
         }
 
         return $next($request);
+    }
+
+    /**
+     * @param $param
+     * @param $key
+     * @return string
+     * 构造签名
+     */
+    public function makeSign($param, $key){
+        // sign字段不参与签名
+        unset($param['sign']);
+
+        // 按参数名字典排序
+        ksort($param);
+
+        // 参数拼接字符串
+        $query = http_build_query($param);
+
+        // 签名
+        $sign = md5($query . $param['time'] . $key);
+
+        return $sign;
     }
 }
