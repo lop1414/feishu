@@ -25,6 +25,6 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        //
+        $schedule->command('sync_employee')->cron('5 * * * *')->withoutOverlapping(10);
     }
 }
