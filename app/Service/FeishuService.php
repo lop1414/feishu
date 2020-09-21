@@ -66,8 +66,8 @@ class FeishuService extends BaseService
         // 设置 token
         $this->setTenantAccessToken();
 
-        if($event['msg_type'] == 'text'){
-            if(strpos($event['text_without_at_bot'], '你是复读机') != false){
+        if(isset($event['msg_type']) && $event['msg_type'] == 'text'){
+            if(strpos($event['text_without_at_bot'], '你是复读机') !== false){
                 $this->feishu->sendTextToOpenid($event['open_id'], '是的, 我是复读机');
             }else{
                 $this->feishu->sendTextToOpenid($event['open_id'], $event['text_without_at_bot']);
