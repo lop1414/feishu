@@ -27,20 +27,36 @@ class FeishuService extends BaseService
      * @param $request
      * @return bool
      * @throws CustomException
-     * 发送消息
+     * 批量发送消息
      */
     public function sendMessage($request){
         // 验证规则
         $this->validRule($request->post(), [
-            'name' => 'required',
+            'names' => 'required|array',
             'title' => 'required',
             'content' => 'required',
         ]);
 
-        $name = $request->post('name');
+        $names = $request->post('names');
         $title = $request->post('title');
         $content = $request->post('content');
 
+        foreach($names as $name){
+            $this->_sendMessage($name, $title, $content);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param $name
+     * @param $title
+     * @param $content
+     * @return bool
+     * @throws CustomException
+     * 发送消息
+     */
+    private function _sendMessage($name, $title, $content){
         $employeeModel = new Employee();
         $employee = $employeeModel->where('name', $name)
             ->first();
