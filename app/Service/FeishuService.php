@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Enums\ExceptionTypeEnums;
+use App\Jobs\CreateErrorLogJob;
 use App\Model\Employee;
 use App\Model\Message;
 use App\Model\TenantAccessToken;
@@ -24,6 +26,56 @@ class FeishuService extends BaseService
     }
 
     /**
+     * @param $token
+     * @return bool
+     * 验证 token
+     */
+    private function checkEventToken($token){
+        return $token == env('FEISHU_EVENT_VERIFICATION_TOKEN');
+    }
+
+    public function event($request){
+        $data = $request->all();
+
+        // 验证 token
+        if($this->checkEventToken($data['token'])){
+            // 订阅地址校验
+            if(isset($data['challenge'])){
+                return $this->eventReturn([
+                    'challenge' => $data['challenge'],
+                ]);
+            }
+
+            // 默认时间回调
+            if(isset($data['type']) && $data['type'] == 'event_callback'){
+                $this->eventCallback($data['event']);
+            }
+
+            dd($data);
+        }
+
+        dispatch(new CreateErrorLogJob(
+            'EVENT_REQUEST_LOG',
+            '事件请求日志',
+            $data,
+            ExceptionTypeEnums::CUSTOM)
+        );
+    }
+
+    private function eventCallback($event){
+        var_dump($event);
+    }
+
+    /**
+     * @param $data
+     * @return \Illuminate\Http\JsonResponse
+     * 事件公共返回
+     */
+    public function eventReturn($data){
+        return response()->json($data);
+    }
+
+    /**
      * @param $request
      * @return bool
      * @throws CustomException
@@ -40,6 +92,27 @@ class FeishuService extends BaseService
         $names = $request->post('names');
         $title = $request->post('title');
         $content = $request->post('content');
+
+        // 所有员工
+        $employeeModel = new Employee();
+        $employeeNames = $employeeModel->pluck('name');
+
+        // 未知员工
+        $notFoundNames = [];
+        foreach($names as $name){
+            if(!in_array($name, $employeeNames->toArray())){
+                $notFoundNames[] = $name;
+            }
+        }
+        if(!empty($notFoundNames)){
+            throw new CustomException([
+                'code' => 'NOT_FOUND_EMPLOYEE_NAMES',
+                'message' => "存在未知员工名称",
+                'data' => [
+                    'not_found_employee_names' => $notFoundNames,
+                ],
+            ]);
+        }
 
         foreach($names as $name){
             $this->_sendMessage($name, $title, $content);

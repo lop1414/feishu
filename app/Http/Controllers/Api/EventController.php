@@ -26,22 +26,10 @@ class EventController extends ApiController
     /**
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
-     * 事件请求验证
+     * 事件订阅
      */
     public function challenge(Request $request){
-        $data = $request->all();
-
-        dispatch(new CreateErrorLogJob(
-                'EVENT_REQUEST_LOG',
-                '事件请求日志',
-                $data,
-                ExceptionTypeEnums::CUSTOM)
-        );
-
-        if(env('FEISHU_EVENT_VERIFICATION_TOKEN') == $data['token']){
-            return response()->json([
-                'challenge' => $data['challenge'],
-            ]);
-        }
+        $ret = $this->service->event($request);
+        return $ret;
     }
 }
