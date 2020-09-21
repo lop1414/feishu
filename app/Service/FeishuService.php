@@ -46,12 +46,12 @@ class FeishuService extends BaseService
                 ]);
             }
 
+            #TODO:uuid验证
+
             // 默认时间回调
             if(isset($data['type']) && $data['type'] == 'event_callback'){
                 $this->eventCallback($data['event']);
             }
-
-            dd($data);
         }
 
         dispatch(new CreateErrorLogJob(
@@ -63,7 +63,19 @@ class FeishuService extends BaseService
     }
 
     private function eventCallback($event){
-        var_dump($event);
+        // 设置 token
+        $this->setTenantAccessToken();
+
+        if($event['msg_type'] == 'text'){
+            if(strpos($event['text_without_at_bot'], '你是复读机') != false){
+                $this->feishu->sendTextToOpenid($event['open_id'], '是的, 我是复读机');
+            }else{
+                $this->feishu->sendTextToOpenid($event['open_id'], $event['text_without_at_bot']);
+            }
+        }else{
+            // 发送消息
+            $this->feishu->sendTextToOpenid($event['open_id'], '我不是很明白你在说什么哦');
+        }
     }
 
     /**
