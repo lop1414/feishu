@@ -34,6 +34,12 @@ class FeishuService extends BaseService
         return $token == env('FEISHU_EVENT_VERIFICATION_TOKEN');
     }
 
+    /**
+     * @param $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws CustomException
+     * 事件订阅
+     */
     public function event($request){
         $data = $request->all();
 
@@ -50,7 +56,7 @@ class FeishuService extends BaseService
 
             // 默认时间回调
             if(isset($data['type']) && $data['type'] == 'event_callback'){
-                $this->eventCallback($data['event']);
+                $this->eventHandle($data['event']);
             }
         }
 
@@ -62,20 +68,52 @@ class FeishuService extends BaseService
         );
     }
 
-    private function eventCallback($event){
+    /**
+     * @param $event
+     * @throws CustomException
+     * 事件处理
+     */
+    private function eventHandle($event){
         // 设置 token
         $this->setTenantAccessToken();
 
-        if(isset($event['msg_type']) && $event['msg_type'] == 'text'){
-            if(strpos($event['text_without_at_bot'], '你是复读机') !== false){
-                $this->feishu->sendTextToOpenid($event['open_id'], '是的, 我是复读机');
-            }else{
-                $this->feishu->sendTextToOpenid($event['open_id'], $event['text_without_at_bot']);
+        if($event['type'] == 'message'){
+            // 消息事件
+            $msgType = $event['msg_type'] ?? '';
+            switch($msgType){
+                case 'text':
+                    $this->messageEventText($event);
+                    break;
             }
         }else{
-            // 发送消息
-            //$this->feishu->sendTextToOpenid($event['open_id'], '我不是很明白你在说什么哦');
+            // 其他事件
         }
+    }
+
+    /**
+     * @param $event
+     * @return bool
+     * @throws CustomException
+     * 文本消息事件
+     */
+    public function messageEventText($event){
+        // 内容
+        if(strpos($event['text_without_at_bot'], '你是复读机') !== false){
+            $replyText = '是的, 我是复读机';
+        }else{
+            $replyText = $event['text_without_at_bot'];
+        }
+
+        // 回复
+        if($event['chat_type'] == 'private'){
+            // 私聊
+            $this->feishu->sendTextToOpenId($event['open_id'], $replyText);
+        }elseif($event['chat_type'] == 'group'){
+            // 群聊
+            $data = $this->feishu->sendTextToChatId($event['open_chat_id'], $replyText);
+        }
+
+        return true;
     }
 
     /**
@@ -157,7 +195,7 @@ class FeishuService extends BaseService
         $this->setTenantAccessToken();
 
         // 发送消息
-        $data = $this->feishu->sendTextToOpenid($employee->open_id, $content);
+        $data = $this->feishu->sendTextToOpenId($employee->open_id, $content);
 
         // 保存
         $messageModel = new Message();

@@ -146,14 +146,25 @@ class Feishu
     }
 
     /**
-     * @param $openid
+     * @param $open_id
      * @param $content
      * @return mixed
      * @throws CustomException
-     * 发送文本至openid
+     * 发送文本至open_id
      */
-    public function sendTextToOpenid($openid, $content){
-        return $this->sendText('open_id', $openid, $content);
+    public function sendTextToOpenId($open_id, $content){
+        return $this->sendText('open_id', $open_id, $content);
+    }
+
+    /**
+     * @param $chat_id
+     * @param $content
+     * @return mixed
+     * @throws CustomException
+     * 发送文本至chat_id
+     */
+    public function sendTextToChatId($chat_id, $content){
+        return $this->sendText('chat_id', $chat_id, $content);
     }
 
     /**
