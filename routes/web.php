@@ -27,4 +27,5 @@ $router->group([
     });
 });
 
+// 事件订阅
 $router->post('api/event/challenge', 'Api\EventController@challenge');

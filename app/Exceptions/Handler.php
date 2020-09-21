@@ -61,7 +61,7 @@ class Handler extends ExceptionHandler
             $errorLogService->catch($exception);
 
             // 失败
-            return $this->fail($errorInfo->code, $errorInfo->message);
+            return $this->fail($errorInfo->code, $errorInfo->message, $errorInfo->data);
         }
 
         // 默认异常
