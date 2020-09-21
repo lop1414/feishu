@@ -26,3 +26,5 @@ $router->group([
         $router->post('send', 'Api\MessageController@send');
     });
 });
+
+$router->post('api/event/challenge', 'Api\EventController@challenge');
