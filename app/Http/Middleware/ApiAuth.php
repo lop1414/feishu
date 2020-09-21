@@ -2,12 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Traits\Api;
 use App\Traits\ApiResponse;
 use Closure;
 
 class ApiAuth
 {
     use ApiResponse;
+    use Api;
 
     /**
      * @param $request
@@ -21,13 +23,16 @@ class ApiAuth
             return $this->fail('PARAM_MISSING', '参数缺失');
         }
 
-        if(TIMESTAMP - $req['time'] > 60){
+        // 是否调试
+        $isDebug = $this->is_debug();
+
+        if(!$isDebug && TIMESTAMP - $req['time'] > 60){
             return $this->fail('TIME_EXPIRED', '请求已失效');
         }
 
         // 签名
         $sign = $this->makeSign($req, env('API_SECRET'));
-        if($sign != $req['sign']){
+        if(!$isDebug && $sign != $req['sign']){
             return $this->fail('SIGN_ERROR', '签名错误');
         }
 

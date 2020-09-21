@@ -20,6 +20,12 @@ class MessageController extends ApiController
         $this->service = new FeishuService();
     }
 
+    /**
+     * @param Request $request
+     * @return mixed
+     * @throws \App\Tools\CustomException
+     * 发送消息
+     */
     public function send(Request $request){
         $ret = $this->service->sendMessage($request);
         return $this->ret($ret);
