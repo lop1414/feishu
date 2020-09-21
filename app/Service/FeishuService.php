@@ -162,7 +162,7 @@ class FeishuService extends BaseService
         if($keyword == 'hi'){
             return '你好呀~';
         }elseif($keyword == 'time'){
-            return date('Y-m-d H:i:s');
+            return '现在是北京时间 '. date('Y-m-d H:i:s');
         }elseif($keyword == 'chp'){
             return file_get_contents('https://chp.shadiao.app/api.php');
         }else{
