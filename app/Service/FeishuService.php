@@ -74,7 +74,7 @@ class FeishuService extends BaseService
             }
         }else{
             // 发送消息
-            $this->feishu->sendTextToOpenid($event['open_id'], '我不是很明白你在说什么哦');
+            //$this->feishu->sendTextToOpenid($event['open_id'], '我不是很明白你在说什么哦');
         }
     }
 
