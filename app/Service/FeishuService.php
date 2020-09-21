@@ -97,11 +97,18 @@ class FeishuService extends BaseService
      * 文本消息事件
      */
     public function messageEventText($event){
-        // 内容
-        if(strpos($event['text_without_at_bot'], '你是复读机') !== false){
-            $replyText = '是的, 我是复读机';
+        $keywordList = $this->getKeywordList();
+
+        $text = trim($event['text_without_at_bot']);
+
+        $keywords = array_map(function($value){
+            return "#{$value}#";
+        }, array_column($keywordList, 'id'));
+
+        if(in_array($text, $keywords)){
+            $replyText = $this->keywordHandle(trim($text, '#'));
         }else{
-            $replyText = $event['text_without_at_bot'];
+            $replyText = $this->getHelp();
         }
 
         // 回复
@@ -110,10 +117,54 @@ class FeishuService extends BaseService
             $this->feishu->sendTextToOpenId($event['open_id'], $replyText);
         }elseif($event['chat_type'] == 'group'){
             // 群聊
-            $data = $this->feishu->sendTextToChatId($event['open_chat_id'], $replyText);
+            $this->feishu->sendTextToChatId($event['open_chat_id'], $replyText);
         }
 
         return true;
+    }
+
+    /**
+     * @return array
+     * 获取关键词列表
+     */
+    public function getKeywordList(){
+        return [
+            ['id' =>'hi', 'name' => '打招呼'],
+            ['id' =>'time', 'name' => '查询当前时间'],
+            ['id' =>'chp', 'name' => '彩虹屁'],
+        ];
+    }
+
+    /**
+     * @return string
+     * 获取帮助
+     */
+    public function getHelp(){
+        $tmp = [];
+        $i = 1;
+        foreach($this->getKeywordList() as $keyword){
+            $tmp[] = "{$i}.{$keyword['name']}请输入:#{$keyword['id']}#";
+            $i++;
+        }
+        $help = "你说的我不太懂,可以输入下列关键字,执行对应操作哦\n". implode("\n", $tmp);
+        return $help;
+    }
+
+    /**
+     * @param $keyword
+     * @return false|string
+     * 关键字处理
+     */
+    public function keywordHandle($keyword){
+        if($keyword == 'hi'){
+            return '你好呀~';
+        }elseif($keyword == 'time'){
+            return date('Y-m-d H:i:s');
+        }elseif($keyword == 'chp'){
+            return file_get_contents('https://chp.shadiao.app/api.php');
+        }else{
+            return "sending {$keyword}...";
+        }
     }
 
     /**
