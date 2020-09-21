@@ -116,8 +116,11 @@ class FeishuService extends BaseService
             // 私聊
             $this->feishu->sendTextToOpenId($event['open_id'], $replyText);
         }elseif($event['chat_type'] == 'group'){
+            $employeeModel = new Employee();
+            $employee = $employeeModel->where('open_id', $event['open_id'])->first();
+            $replyName = $employee->name ?? '';
             // 群聊
-            $this->feishu->sendTextToChatId($event['open_chat_id'], $replyText);
+            $this->feishu->sendTextToChatId($event['open_chat_id'], "<at open_id=\"{$event['open_id']}\">@{$replyName}</at> ". $replyText);
         }
 
         return true;
