@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Enums\ExceptionTypeEnums;
 use App\Jobs\CreateErrorLogJob;
+use App\Model\CallbackEvent;
 use App\Model\Employee;
 use App\Model\Message;
 use App\Model\TenantAccessToken;
@@ -45,6 +46,7 @@ class FeishuService extends BaseService
 
         // 验证 token
         if($this->checkEventToken($data['token'])){
+
             // 订阅地址校验
             if(isset($data['challenge'])){
                 return $this->eventReturn([
@@ -53,19 +55,28 @@ class FeishuService extends BaseService
             }
 
             #TODO:uuid验证
+            $callbackEvent = new CallbackEvent();
+            $callbackEvent->callback_type = $data['type'] ?? '';
+            $callbackEvent->event_type = $data['event']['type'] ?? '';
+            $callbackEvent->app_id = $data['event']['app_id'] ?? '';
+            $callbackEvent->tenant_key = $data['event']['tenant_key'] ?? '';
+            $callbackEvent->extends = $data['event'] ?? [];
+            $callbackEvent->save();
 
-            // 默认时间回调
-            if(isset($data['type']) && $data['type'] == 'event_callback'){
+            // 回调事件类型
+            $callbackType = $data['type'] ?? '';
+            if($callbackType == 'event_callback'){
                 $this->eventHandle($data['event']);
             }
+        }else{
+            // 无效token
+            dispatch(new CreateErrorLogJob(
+                    'EVENT_REQUEST_ERROR_LOG',
+                    '事件请求错误日志',
+                    $data,
+                    ExceptionTypeEnums::CUSTOM)
+            );
         }
-
-        dispatch(new CreateErrorLogJob(
-            'EVENT_REQUEST_LOG',
-            '事件请求日志',
-            $data,
-            ExceptionTypeEnums::CUSTOM)
-        );
     }
 
     /**
@@ -114,13 +125,13 @@ class FeishuService extends BaseService
         // 回复
         if($event['chat_type'] == 'private'){
             // 私聊
-            $this->feishu->sendTextToOpenId($event['open_id'], $replyText);
+            $this->sendMessageToOpenId($event['open_id'], '机器人私聊回复', $replyText);
         }elseif($event['chat_type'] == 'group'){
+            // 群聊
             $employeeModel = new Employee();
             $employee = $employeeModel->where('open_id', $event['open_id'])->first();
             $replyName = $employee->name ?? '';
-            // 群聊
-            $this->feishu->sendTextToChatId($event['open_chat_id'], "<at open_id=\"{$event['open_id']}\">@{$replyName}</at> ". $replyText);
+            $this->sendMessageToChatId($event['open_chat_id'], '机器人群聊回复', "<at open_id=\"{$event['open_id']}\">@{$replyName}</at> ". $replyText);
         }
 
         return true;
@@ -199,7 +210,10 @@ class FeishuService extends BaseService
 
         // 所有员工
         $employeeModel = new Employee();
-        $employeeNames = $employeeModel->pluck('name');
+        $employees = $employeeModel->get();
+
+        // 员工名称
+        $employeeNames = $employees->pluck('name');
 
         // 未知员工
         $notFoundNames = [];
@@ -218,38 +232,67 @@ class FeishuService extends BaseService
             ]);
         }
 
+        // 员工映射
+        $employeeMap = $employees->keyBy('name');
+
         foreach($names as $name){
-            $this->_sendMessage($name, $title, $content);
+            if(!isset($employeeMap[$name])){
+                continue;
+            }
+            $this->sendMessageToOpenId($employeeMap[$name]->open_id, $title, $content);
         }
 
         return true;
     }
 
     /**
-     * @param $name
+     * @param $openId
+     * @param $title
+     * @param $content
+     * @return bool
+     * @throws CustomException
+     * 私聊发送消息
+     */
+    private function sendMessageToOpenId($openId, $title, $content){
+        return $this->_sendMessage('open_id', $openId, $title, $content);
+    }
+
+    /**
+     * @param $chatId
+     * @param $title
+     * @param $content
+     * @return bool
+     * @throws CustomException
+     * 群聊发送消息
+     */
+    private function sendMessageToChatId($chatId, $title, $content){
+        return $this->_sendMessage('chat_id', $chatId, $title, $content);
+    }
+
+    /**
+     * @param $targetType
+     * @param $targetId
      * @param $title
      * @param $content
      * @return bool
      * @throws CustomException
      * 发送消息
      */
-    private function _sendMessage($name, $title, $content){
-        $employeeModel = new Employee();
-        $employee = $employeeModel->where('name', $name)
-            ->first();
-
-        if(empty($employee)){
-            throw new CustomException([
-                'code' => 'NOT_FOUND_EMPLOYEE',
-                'message' => "找不到员工{{$name}}",
-            ]);
-        }
-
+    private function _sendMessage($targetType, $targetId, $title, $content){
         // 设置 token
         $this->setTenantAccessToken();
 
-        // 发送消息
-        $data = $this->feishu->sendTextToOpenId($employee->open_id, $content);
+        if($targetType == 'open_id'){
+            // 发送消息
+            $data = $this->feishu->sendTextToOpenId($targetId, $content);
+        }elseif($targetType == 'chat_id'){
+            $data = $this->feishu->sendTextToChatId($targetId, $content);
+        }else{
+            throw new CustomException([
+                'code' => 'TARGET_TYPE_ERROR',
+                'message' => '目标类型错误',
+            ]);
+        }
 
         // 保存
         $messageModel = new Message();
@@ -257,7 +300,8 @@ class FeishuService extends BaseService
         $messageModel->type = 'text';
         $messageModel->title = $title;
         $messageModel->content = $content;
-        $messageModel->employee_id = $employee->employee_id;
+        $messageModel->target_type = $targetType;
+        $messageModel->target_id = $targetId;
         $messageModel->save();
 
         return true;
