@@ -355,8 +355,21 @@ class FeishuService extends BaseService
         // 获取通讯录
         $contacts = $this->feishu->getContacts();
 
+        // 无部门员工id
+        $employeeIds = $contacts['authed_employee_ids'];
+
+        $departmentsIds = $contacts['authed_departments'] ?? [];
+
+        // 获取部门员工id
+        foreach($departmentsIds as $departmentId){
+            $departmentContacts = $this->feishu->getDepartmentContacts($departmentId);
+            $departmentEmployeeIds = array_column($departmentContacts['user_list'], 'employee_id');
+            $employeeIds = array_merge($employeeIds, $departmentEmployeeIds);
+        }
+        $employeeIds = array_unique($employeeIds);
+
         // 获取员工列表
-        $data = $this->feishu->getEmployees($contacts['authed_employee_ids']);
+        $data = $this->feishu->getEmployees($employeeIds);
 
         $employees = [];
         foreach($data['user_infos'] as $employee){

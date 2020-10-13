@@ -78,6 +78,7 @@ class Feishu
         $apiUriMap = [
             'get_tenant_access_token' => 'auth/v3/tenant_access_token/internal/',
             'get_scope_contact' => 'contact/v1/scope/get',
+            'get_department_user_list' => 'contact/v1/department/user/list',
             'user_batch_get' => 'contact/v1/user/batch_get',
             'message_send' => 'message/v4/send/',
         ];
@@ -118,6 +119,28 @@ class Feishu
      */
     public function getContacts(){
         $url = $this->getApiUrl('get_scope_contact');
+
+        $ret = $this->authRequest($url);
+
+        return $ret;
+    }
+
+    /**
+     * @param $departmentId
+     * @return mixed
+     * @throws CustomException
+     * 获取部门通讯录
+     */
+    public function getDepartmentContacts($departmentId){
+        $url = $this->getApiUrl('get_department_user_list');
+
+        $query = [
+            'department_id' => $departmentId,
+            'page_size' => 100,
+            'fetch_child' => true,
+        ];
+
+        $url .= '?'. http_build_query($query);
 
         $ret = $this->authRequest($url);
 
